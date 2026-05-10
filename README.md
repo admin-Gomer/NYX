@@ -45,5 +45,5 @@ node index
 
 # 💥СВЯЖИТЕСЬ СО МНОЙ💥
 
-[![WhatsApp](https://img.shields.io/badge/Мой номер-00802f?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/79940139737) <img src="https://raw.githubusercontent.com/Bots-WhatsApp-OFC/Bots-WhatsApp-OFC/master/accesos/iconos/whatsapp.gif" width="30">
+[[![WhatsApp](https://img.shields.io/badge/Мой номер-00802f?style=for-the-badge&logo=whatsapp&logoColor=white)]](https://wa.me/79940139737)(https://wa.me/79940139737) <img src="https://raw.githubusercontent.com/Bots-WhatsApp-OFC/Bots-WhatsApp-OFC/master/accesos/iconos/whatsapp.gif" width="30">
 

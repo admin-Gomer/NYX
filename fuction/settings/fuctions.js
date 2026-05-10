@@ -244,8 +244,8 @@ return `-c ${key}=${value}`
 }).concat(config.presets).filter(Boolean)
 }
 
-const authorname = "Naufra"
-const packname = "Creador: @Naufra"
+const authorname = "꧁☠︎︎🅼🅸🅺🅷🅰︎🅸🅻☠︎︎꧂"
+const packname = "Creador: ꧁☠︎︎🅼🅸🅺🅷🅰︎🅸🅻☠︎︎꧂"
 
 const chyt = "558288279194@s.whatsapp.net";
 const nit = "554491712954@s.whatsapp.net";

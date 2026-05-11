@@ -1,4 +1,180 @@
-// NaufraBot - Полная версия (финальная)
+
+
+        case 'музыка': case 'play':
+          if (!isReg) return enviar(respuesta.registro)
+          if (!q) return enviar('❌ Введите название\nПример: #музыка believer')
+          enviar('🔍 Ищу...')
+          try {
+            const yts = require('yt-search')
+            const fetch = require('node-fetch')
+            let { videos } = await yts(q)
+            if (!videos || videos.length === 0) return enviar('❌ Не найдено')
+            let video = videos[0]
+            const apis = [
+              `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(video.url)}`,
+              `https://api.zenkey.my.id/api/download/ytmp3?apikey=zenkey&url=${encodeURIComponent(video.url)}`,
+              `https://exonity.tech/api/dl/playmp3?query=${encodeURIComponent(video.title)}`,
+              `https://api.dorratz.com/v3/ytdl?url=${encodeURIComponent(video.url)}`
+            ]
+            let audioUrl = ''
+            for (let api of apis) {
+              try { let r = await fetch(api).then(r => r.json()); audioUrl = r?.dl || r?.result?.download?.url || r?.result?.download || r?.data?.url || r?.medias?.[0]?.url || ''; if (audioUrl) break } catch(e) {}
+            }
+            if (audioUrl) {
+              let thumb = video.thumbnail || ''
+              let title = video.title || ''
+              let author = video.author?.name || ''
+              let duration = video.timestamp || ''
+              let views = video.views || ''
+              await sock.sendMessage(from, { image: { url: thumb }, caption: `🎵 *${title}*\n👤 ${author}\n⏱ ${duration}\n👁 ${views}` }, { quoted: info })
+              await sock.sendMessage(from, { audio: { url: audioUrl }, mimetype: 'audio/mpeg', ptt: false }, { quoted: info })
+            } else { enviar('❌ Все API недоступны') }
+          } catch(e) { enviar('❌ Ошибка') }
+          break
+
+        case 'реакции': case 'reactions':
+          if (!isGroupAdmins) return enviar(respuesta.admin)
+          const reactPath = './settings/Grupo/Json/reactions.json'
+          let reactData = fs.existsSync(reactPath) ? JSON.parse(fs.readFileSync(reactPath)) : { activo: false, grupos: [] }
+          if (!reactData.grupos) reactData.grupos = []
+          if (args[0] === 'включить' || args[0] === 'on') { if (reactData.grupos.includes(from)) return enviar('Уже включено'); reactData.grupos.push(from); fs.writeFileSync(reactPath, JSON.stringify(reactData)); enviar('✅ Реакции включены') }
+          else if (args[0] === 'выключить' || args[0] === 'off') { if (!reactData.grupos.includes(from)) return enviar('Уже выключено'); reactData.grupos = reactData.grupos.filter(g => g !== from); fs.writeFileSync(reactPath, JSON.stringify(reactData)); enviar('❌ Реакции выключены') }
+          else { const st = reactData.grupos.includes(from) ? '✅ Вкл' : '❌ Выкл'; enviar(`Реакции: ${st}`) }
+          break
+
+        case 'гороскоп': case 'horoscope':
+          if (!q) return enviar('❌ Введите знак\nПример: #гороскоп овен')
+          const signs = {
+            'овен': '♈ Сегодня Овнам стоит быть решительнее.',
+            'телец': '♉ Тельцам сегодня повезёт в делах.',
+            'близнецы': '♊ Близнецы, будьте осторожны с обещаниями.',
+            'рак': '♋ Ракам сегодня стоит отдохнуть.',
+            'лев': '♌ Львы сегодня в центре внимания!',
+            'дева': '♍ Девам сегодня лучше заняться уборкой.',
+            'весы': '♎ Весы, сегодня день гармонии.',
+            'скорпион': '♏ Скорпионам сегодня откроется тайна.',
+            'стрелец': '♐ Стрельцы, отличный день для путешествий!',
+            'козерог': '♑ Козерогам сегодня стоит заняться финансами.',
+            'водолей': '♒ Водолеям сегодня придёт гениальная идея.',
+            'рыбы': '♓ Рыбам сегодня снятся вещие сны.'
+          }
+          let sign = q.toLowerCase()
+          if (signs[sign]) enviar(signs[sign])
+          else enviar('❌ Знак не найден.\n♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓')
+          break
+
+        case 'мойид': case 'myid':
+          enviar(`Твой ID: ${sender}`)
+          break
+
+        case 'чистить': case 'cleartmp':
+          if (!isOwner) return enviar(respuesta.miowner)
+          let deleted = 0
+          for (let dir of ['./tmp', './temp']) {
+            if (fs.existsSync(dir)) {
+              try { const files = fs.readdirSync(dir); for (const f of files) { try { fs.unlinkSync(dir + '/' + f); deleted++ } catch(e) {} } } catch(e) {}
+            }
+          }
+          enviar(`✅ Очищено ${deleted} файлов`)
+          break
+
+        case 'характер': case 'character':
+          if (!isGroup) return enviar('👥 Только в группах')
+          let target = info.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || info.message?.extendedTextMessage?.contextInfo?.participant
+          if (!target) return enviar('❌ Упомяните кого-то\nПример: #характер @user')
+          let traits = ['Умный', 'Креативный', 'Решительный', 'Заботливый', 'Харизматичный', 'Энергичный', 'Дружелюбный', 'Щедрый', 'Честный', 'Верный', 'Оптимистичный', 'Мудрый']
+          let selected = []; for (let i = 0; i < 3; i++) { let t = traits[Math.floor(Math.random() * traits.length)]; if (!selected.includes(t)) selected.push(t) }
+          let result = selected.map(t => `${t}: ${Math.floor(Math.random() * 41) + 60}%`).join('\n')
+          let photo; try { photo = await sock.profilePictureUrl(target, 'image') } catch { photo = 'https://i.imgur.com/2wzGhpF.jpeg' }
+          await sock.sendMessage(from, { image: { url: photo }, caption: `🔮 *Анализ характера*\n\n👤 @${target.split('@')[0]}\n\n${result}`, mentions: [target] }, { quoted: info })
+          break
+
+        case 'тествладельца': case 'testowner':
+          let ownerList = owner.includes(',') ? owner.split(',') : [owner]
+          let isOwnerTest = ownerList.some(o => sender.includes(o))
+          enviar(`📋 *Информация*\n\n👤 Ваш номер: ${sender.split('@')[0]}\n👑 Владельцы: ${ownerList.join(', ')}\n✅ Вы владелец: ${isOwnerTest ? '✅ Да' : '❌ Нет'}`)
+          break
+
+        case 'предупреждение': case 'warn':
+          if (!isGroup) return enviar('👥 Только в группах')
+          if (!isGroupAdmins) return enviar(respuesta.admin)
+          let tgt = obtenerMencionado(info)
+          if (!tgt) return enviar('❌ Упомяните участника\nПример: #предупреждение @user')
+          if (!global.warns) global.warns = {}
+          if (!global.warns[from]) global.warns[from] = {}
+          if (!global.warns[from][tgt]) global.warns[from][tgt] = 0
+          global.warns[from][tgt]++
+          let cw = global.warns[from][tgt]
+          if (cw >= 3) {
+            try { await sock.groupParticipantsUpdate(from, [tgt], 'remove'); await sock.sendMessage(from, { text: `🚫 @${tgt.split('@')[0]} удалён (${cw}/3)`, mentions: [tgt] }, { quoted: info }); delete global.warns[from][tgt] } catch(e) { await sock.sendMessage(from, { text: `⚠️ @${tgt.split('@')[0]} предупреждение ${cw}/3`, mentions: [tgt] }, { quoted: info }) }
+          } else {
+            await sock.sendMessage(from, { text: `⚠️ @${tgt.split('@')[0]} предупреждение ${cw}/3`, mentions: [tgt] }, { quoted: info })
+          }
+          break
+
+        case 'антиудаление': case 'antidelete':
+          if (!isGroupAdmins) return enviar(respuesta.admin)
+          if (!global.antiDel) global.antiDel = {}
+          if (args[0] === 'включить' || args[0] === 'on') {
+            global.antiDel[from] = true
+            enviar('✅ Антиудаление включено. Удалённые сообщения пересылаются владельцу.')
+          } else if (args[0] === 'выключить' || args[0] === 'off') {
+            delete global.antiDel[from]
+            enviar('❌ Антиудаление выключено.')
+          } else {
+            let st = global.antiDel[from] ? '✅ Вкл' : '❌ Выкл'
+            enviar(`Антиудаление: ${st}\n• антиудаление включить\n• антиудаление выключить`)
+          }
+          break
+
+        default: {
+          // АНТИССЫЛКА 1 — с предупреждениями (3 ссылки = кик)
+          if (isGroup && isAntiLink && !isOwner) {
+            const lt1 = (budy || '').toLowerCase()
+            if (lt1.includes('.com') || lt1.includes('http://') || lt1.includes('https://')) {
+              try { await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } }) } catch(e) {}
+              if (!global.linkWarns) global.linkWarns = {}
+              if (!global.linkWarns[from]) global.linkWarns[from] = {}
+              if (!global.linkWarns[from][sender]) global.linkWarns[from][sender] = 0
+              global.linkWarns[from][sender]++
+              let warns = global.linkWarns[from][sender]
+              if (warns >= 3) {
+                try {
+                  const { jidNormalizedUser } = require('baileys')
+                  await sock.groupParticipantsUpdate(from, [jidNormalizedUser(sender)], 'remove')
+                  await enviar(`🚫 @${sender.split('@')[0]} удалён за ссылки (${warns}/3)`, { mentions: [sender] })
+                  delete global.linkWarns[from][sender]
+                } catch(e) { await enviar(`⚠️ @${sender.split('@')[0]} ссылки запрещены! (${warns}/3) Бот не админ.`, { mentions: [sender] }) }
+              } else {
+                await enviar(`⚠️ @${sender.split('@')[0]} ссылки запрещены! Предупреждение ${warns}/3`, { mentions: [sender] })
+              }
+            }
+          }
+          // АНТИССЫЛКА 2 — сразу кик
+          const al2Path2 = './settings/Grupo/Json/antilink2.json'
+          if (isGroup && fs.existsSync(al2Path2)) {
+            const al2Data = JSON.parse(fs.readFileSync(al2Path2))
+            if (al2Data.includes(from)) {
+              const lt2 = (budy || '').toLowerCase()
+              if (lt2.includes('.com') || lt2.includes('http://') || lt2.includes('https://')) {
+                try { await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } }) } catch(e) {}
+                try {
+                  const { jidNormalizedUser } = require('baileys')
+                  await sock.groupParticipantsUpdate(from, [jidNormalizedUser(sender)], 'remove')
+                  await enviar(`🚫 @${sender.split('@')[0]} удалён за ссылку`, { mentions: [sender] })
+                } catch(e) { await enviar(`⚠️ @${sender.split('@')[0]} отправил ссылку! Бот не админ.`, { mentions: [sender] }) }
+              }
+            }
+          }
+          if (budy.startsWith('=>Duueño') && isOwner) {
+            try { enviar(util.format(eval(`(async () => { return ${budy.slice(3)} })()`))) } catch (e) { enviar(String(e)) }
+          }
+        }
+      }
+    } catch (e) { if (!e.message?.includes('zero') && !e.message?.includes('MIME') && !e.message?.includes('conversation')) console.log('Error:', color(e.message, 'red')) }
+  })
+}
+startProo()// NaufraBot - Полная версия (финальная)
 const { default: makeWASocket, DisconnectReason, makeCacheableSignalKeyStore, useMultiFileAuthState, fetchLatestBaileysVersion, downloadContentFromMessage, jidDecode, proto } = require("baileys")
 const fs = require('fs')
 const { Boom } = require('@hapi/boom')
@@ -40,109 +216,118 @@ async function startProo() {
 // ПОЛНОЭКРАННЫЙ ЦВЕТНОЙ БАННЕР
 // ============================================================
 console.clear();
-const c = chalk;
-const logo = [
-  ` ███▄    █ ▓██   ██▓▒██   ██▒`,
-  ` ██ ▀█   █  ▒██  ██▒▒▒██ ██░`,
-  `▓██  ▀█ ██▒  ▒██ ██░ ░███░  `,
-  `▓██▒  ▐▌██▒  ░ ▐██▓░ ░███░  `,
-  `▒██░   ▓██░  ░ ██▒▓░ ▒████▒ `,
-  `░ ▒░   ▒ ▒     ██▒▒▒  ░ ▒░ ░`,
-  `░ ░░   ░ ▒░  ▓██ ░▒░  ░ ░  ░`,
-  `   ░   ░ ░   ▒ ▒ ░░     ░   `,
-  `         ░   ░ ░       ░  ░  `,
-  `             ░ ░             `
-];
-
-console.log(c.cyan('╔══════════════════════════════════════════════════════╗'));
-console.log(c.cyan('║') + c.magenta('  👑 NYX BOT - ТВОЙ ЛИЧНЫЙ ПОМОЩНИК 👑           ') + c.cyan('║'));
-console.log(c.cyan('╚══════════════════════════════════════════════════════╝'));
+console.log(chalk.cyan('╔══════════════════════════════════════════════════════════════╗'));
+console.log(chalk.cyan('║') + '                                                              ' + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ███╗░░░███╗██╗██╗░░██╗██╗░░██╗░█████╗░██╗██╗░░░░░   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ████╗░████║██║██║░██╔╝██║░░██║██╔══██╗██║██║░░░░░   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ██╔████╔██║██║█████═╝░███████║███████║██║██║░░░░░   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ██║╚██╔╝██║██║██╔═██╗░██╔══██║██╔══██║██║██║░░░░░   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ██║░╚═╝░██║██║██║░╚██╗██║░░██║██║░░██║██║███████╗   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.yellow('   ╚═╝░░░░░╚═╝╚═╝╚═╝░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝╚═╝╚══════╝   ') + chalk.cyan('║'));
+console.log(chalk.cyan('║') + chalk.white('                                          [] CODEX 1.5       ') + chalk.cyan('║'));
+console.log(chalk.cyan('╚══════════════════════════════════════════════════════════════╝'));
 console.log('');
-logo.forEach((line, i) => {
-  const colors = [c.yellow, c.green, c.cyan, c.blue, c.magenta, c.red];
-  console.log('  ' + colors[i % colors.length](line));
-});
-console.log('');
-console.log(c.yellow('┌──────────────────────────────────────────────────────┐'));
-console.log(c.yellow('│') + c.white(`  🤖 Бот: ${c.green(Bot)}`) + ' '.repeat(40 - Bot.length) + c.yellow('│'));
-console.log(c.yellow('│') + c.white(`  👑 Владелец: ${c.green(owner)}`) + ' '.repeat(32 - owner.length) + c.yellow('│'));
-console.log(c.yellow('│') + c.white(`  🔰 Префиксы: ${c.green(prefixo.join(', '))}`) + ' '.repeat(28) + c.yellow('│'));
-console.log(c.yellow('└──────────────────────────────────────────────────────┘'));
-console.log('');
-console.log(c.green('  ⚡ БОТ УСПЕШНО ПОДКЛЮЧЁН И ГОТОВ К РАБОТЕ ⚡'));
+console.log(chalk.magenta('               ⚡ БОТ УСПЕШНО ПОДКЛЮЧЁН ⚡'));
+console.log(chalk.cyan('               ГОТОВ К РАБОТЕ 24/7'));
 console.log('');
   const { state, saveCreds } = await useMultiFileAuthState("./session");
   const { version } = await fetchLatestBaileysVersion();
   const sock = makeWASocket({ version, logger: pino({ level: "silent" }), printQRInTerminal: false, browser: ["Ubuntu", "Chrome", "20.0.04"], auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })) }, markOnlineOnConnect: true, generateHighQualityLinkPreview: true, syncFullHistory: false });
   if (!sock.authState.creds.registered) { let n = await question(chalk.cyan("📱 Введите номер WhatsApp: ")); rl.close(); n = n.replace(/[^0-9]/g, ""); if (!n) { console.log(chalk.red("❌ Неверный номер.")); process.exit(1); } try { const c = await sock.requestPairingCode(n); console.log(chalk.bgGreen.black("✅ КОД:"), chalk.white(c)); } catch (e) { console.error(chalk.red("❌ Ошибка:"), e.message); process.exit(1); } }
-  sock.ev.on("connection.update", async (u) => { const { connection, lastDisconnect } = u; if (connection === "close") { if (new Boom(lastDisconnect?.error)?.output?.statusCode === DisconnectReason.loggedOut) console.log(chalk.red("❌ Сессия закрыта.")); else { console.log(chalk.yellow("⚠️ Переподключение...")); startProo(); } } else if (connection === "open") { console.log(chalk.greenBright.bold("\n╔══════════════════╗\n║  ✅ ПОДКЛЮЧЕНО  ║\n╚══════════════════╝\n")); exec("rm -rf tmp && mkdir tmp"); } });
+  sock.ev.on("connection.update", async (u) => { const { connection, lastDisconnect } = u; if (connection === "close") { if (new Boom(lastDisconnect?.error)?.output?.statusCode === DisconnectReason.loggedOut) console.log(chalk.red("❌ Сессия закрыта.")); else { console.log(chalk.yellow("⚠️ Переподключение...")); startProo(); } } else if (connection === "open") { console.log(chalk.greenBright.bold("✅ ПОДКЛЮЧЕНО")); exec("rm -rf tmp && mkdir tmp"); } });
   sock.ev.on("creds.update", saveCreds);
 
-  // ========== ПРИВЕТСТВИЯ, ПРОВОДЫ, АДМИНЫ ==========
-  sock.ev.on("group-participants.update", async (anu) => {
-    if (!welkom.includes(anu.id)) return
-    try {
-      const meta = await sock.groupMetadata(anu.id)
-      for (let nu of anu.participants) {
-        const n = anu.participants[0], g = meta.subject, m = meta.participants.length, d = meta.desc || 'Нет описания', mr = String.fromCharCode(8206).repeat(850)
-        
-        if (anu.action == 'add') {
-          const welcomes = [
-            `💌 Привет, @${n.split('@')[0]}! Добро пожаловать в *${g}*!`,
-            `🌟 Ура! @${n.split('@')[0]} теперь с нами в *${g}*!`,
-            `🎉 Встречайте! @${n.split('@')[0]} присоединился к *${g}*!`,
-            `🔥 Огонь! @${n.split('@')[0]} залетел в *${g}*!`,
-            `👋 Приветствуем @${n.split('@')[0]} в *${g}*!`,
-            `🚀 @${n.split('@')[0]} приземлился в *${g}*!`,
-            `✨ @${n.split('@')[0]} теперь часть *${g}*!`,
-            `🍀 Удача привела @${n.split('@')[0]} в *${g}*!`,
-            `💪 Новый боец @${n.split('@')[0]} в *${g}*!`,
-            `🎈 Салют! @${n.split('@')[0]} теперь с нами!`
-          ]
-          const quotes = [
-            'Лучший день чтобы начать что-то новое!', 'Улыбнись — ты в хорошей компании!',
-            'Здесь говорят о важном и не очень.', 'Будь собой, остальные роли заняты.',
-            'Жизнь слишком коротка для скучных чатов.', 'В этом чате рождаются легенды.',
-            'Не откладывай на завтра то что можно сказать сегодня!', 'Добро пожаловать в лучшее место!',
-            'Тише едешь — дальше будешь!', 'Сначала прочитай правила, потом шути!'
-          ]
-          const rw = welcomes[Math.floor(Math.random() * welcomes.length)]
-          const rq = quotes[Math.floor(Math.random() * quotes.length)]
-          await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─⌬༓༒༓⌬─━✦\n*ДОБРО ПОЖАЛОВАТЬ*\n\n${rw}\n『 👥 Участников: ${m} 』\n${mr}\n╭─「 📜 ПРАВИЛА 」─╮\n│ ${d}\n│\n│ 💬 ${rq}\n╰─────────────\n✦━─⌬༓༒༓⌬─━✦`, mentions: [n] })
-        }
-        
-        if (anu.action == 'promote') {
-          await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─┈༓༒༓┈─━✦\n*НОВЫЙ АДМИН*\n\n👤 @${n.split('@')[0]}\n🌐 ${meta.subject}\n✦━─┈༓༒༓┈─━✦`, mentions: [n] })
-        }
-        if (anu.action == 'demote') {
-          await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─┈༓༒༓┈─━✦\n*АДМИН СНЯТ*\n\n👤 @${n.split('@')[0]}\n🌐 ${meta.subject}\n✦━─┈༓༒༓┈─━✦`, mentions: [n] })
-        }
-        if (anu.action == 'remove') {
-          const goodbyes = [
-            `👋 Пока, @${n.split('@')[0]}! Заходи ещё в *${g}*!`,
-            `😢 Жаль что ты ушёл, @${n.split('@')[0]}...`,
-            `🚪 @${n.split('@')[0]} покинул *${g}*. Двери открыты!`,
-            `💨 @${n.split('@')[0]} испарился из *${g}*...`,
-            `😔 Минус один... @${n.split('@')[0]}, возвращайся!`,
-            `🌟 Удачи, @${n.split('@')[0]}! Будем ждать!`
-          ]
-          const goodbyeQuotes = [
-            'Жизнь идёт дальше...', 'Возвращайся, мы не кусаемся!',
-            'Группа стала чуточку тише...', 'Надеемся, ты вернёшься!'
-          ]
-          const rg = goodbyes[Math.floor(Math.random() * goodbyes.length)]
-          const rgq = goodbyeQuotes[Math.floor(Math.random() * goodbyeQuotes.length)]
-          await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─⌬༓༒༓⌬─━✦\n*ПРОЩАЙ*\n\n${rg}\n『 👥 Осталось: ${m} 』\n│\n│ 💬 ${rgq}\n✦━─⌬༓༒༓⌬─━✦`, mentions: [n] })
-        }
-      }
-    } catch (e) {}
-  })
+// ========== ПРИВЕТСТВИЯ, ПРОВОДЫ, АДМИНЫ ==========
+sock.ev.on("group-participants.update", async (anu) => {
+  if (!welkom.includes(anu.id)) return
+  try {
+    const meta = await sock.groupMetadata(anu.id)
+    for (let nu of anu.participants) {
+      const n = anu.participants[0], g = meta.subject, m = meta.participants.length, d = meta.desc || 'Нет описания', mr = String.fromCharCode(8206).repeat(850)
 
-  // ========== ОБРАБОТКА СООБЩЕНИЙ ==========
+      if (anu.action == 'add') {
+        // АнтиБот — удаляем по имени бота
+        if (global.antiBot && global.antiBot[anu.id]) {
+          let nameToCheck = ''
+          try { nameToCheck = (await sock.getContact(n)).pushname || '' } catch(e) {}
+          if (/bot|assistant|robot|auto|ai/i.test(nameToCheck)) {
+            try {
+              await sock.groupParticipantsUpdate(anu.id, [n], 'remove')
+              return
+            } catch(e) {}
+          }
+        }
+        
+        // АнтиАраб — удаляем номера арабских стран
+if (global.antiArab && global.antiArab[anu.id]) {
+  const num = n.split('@')[0].replace(/[^0-9]/g, '')
+  const arabCodes = ['20','211','212','213','216','218','220','221','222','223','224','225','226','227','228','229','230','231','232','233','234','235','236','237','238','239','240','241','242','243','244','245','246','247','248','249','250','251','252','253','254','255','256','257','258','260','261','262','263','264','265','266','267','268','269','27','290','291','297','298','299','355','374','375','380','381','385','386','387','389','40','41','43','44','45','46','47','48','49','51','52','53','54','55','56','57','58','60','61','62','63','64','65','66','81','82','84','86','90','91','92','93','94','95','98','212','213','216','218','249','252','253','254','255','256','257','258','260','261','262','263','264','265','266','267','268','269','27','290','291','297','298','299','355','213','216','218','20','211','212','221','222','223','224','225','226','227','228','229','230','231','232','233','234','235','236','237','238','239','240','241','242','243','244','245','246','247','248','249','250','251','252','253','254','255','256','257','258','260','261','262','263','264','265','266','267','268','269','27','290','291','297','298','299']
+  if (arabCodes.includes(num.substring(0,3)) || arabCodes.includes(num.substring(0,2)) || arabCodes.includes(num.substring(0,1))) {
+    try {
+      await sock.groupParticipantsUpdate(anu.id, [n], 'remove')
+      return
+    } catch(e) {}
+  }
+}
+
+        const welcomes = [
+          `💌 Привет, @${n.split('@')[0]}! Добро пожаловать в *${g}*!`,
+          `🌟 Ура! @${n.split('@')[0]} теперь с нами в *${g}*!`,
+          `🎉 Встречайте! @${n.split('@')[0]} присоединился к *${g}*!`,
+          `🔥 Огонь! @${n.split('@')[0]} залетел в *${g}*!`,
+          `👋 Приветствуем @${n.split('@')[0]} в *${g}*!`,
+          `🚀 @${n.split('@')[0]} приземлился в *${g}*!`,
+          `✨ @${n.split('@')[0]} теперь часть *${g}*!`,
+          `🍀 Удача привела @${n.split('@')[0]} в *${g}*!`,
+          `💪 Новый боец @${n.split('@')[0]} в *${g}*!`,
+          `🎈 Салют! @${n.split('@')[0]} теперь с нами!`
+        ]
+        const quotes = [
+          'Лучший день чтобы начать что-то новое!', 'Улыбнись — ты в хорошей компании!',
+          'Здесь говорят о важном и не очень.', 'Будь собой, остальные роли заняты.',
+          'Жизнь слишком коротка для скучных чатов.', 'В этом чате рождаются легенды.',
+          'Не откладывай на завтра то что можно сказать сегодня!', 'Добро пожаловать в лучшее место!',
+          'Тише едешь — дальше будешь!', 'Сначала прочитай правила, потом шути!'
+        ]
+        const rw = welcomes[Math.floor(Math.random() * welcomes.length)]
+        const rq = quotes[Math.floor(Math.random() * quotes.length)]
+        await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─⌬༓༒༓⌬─━✦\n*ДОБРО ПОЖАЛОВАТЬ*\n\n${rw}\n『 👥 Участников: ${m} 』\n${mr}\n╭─「 📜 ПРАВИЛА 」─╮\n│ ${d}\n│\n│ 💬 ${rq}\n╰─────────────\n✦━─⌬༓༒༓⌬─━✦`, mentions: [n] })
+      }
+
+      if (anu.action == 'promote') {
+        await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─┈༓༒༓┈─━✦\n*НОВЫЙ АДМИН*\n\n👤 @${n.split('@')[0]}\n🌐 ${meta.subject}\n✦━─┈༓༒༓┈─━✦`, mentions: [n] })
+      }
+      if (anu.action == 'demote') {
+        await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─┈༓༒༓┈─━✦\n*АДМИН СНЯТ*\n\n👤 @${n.split('@')[0]}\n🌐 ${meta.subject}\n✦━─┈༓༒༓┈─━✦`, mentions: [n] })
+      }
+      if (anu.action == 'remove') {
+        const goodbyes = [
+          `👋 Пока, @${n.split('@')[0]}! Заходи ещё в *${g}*!`,
+          `😢 Жаль что ты ушёл, @${n.split('@')[0]}...`,
+          `🚪 @${n.split('@')[0]} покинул *${g}*. Двери открыты!`,
+          `💨 @${n.split('@')[0]} испарился из *${g}*...`,
+          `😔 Минус один... @${n.split('@')[0]}, возвращайся!`,
+          `🌟 Удачи, @${n.split('@')[0]}! Будем ждать!`
+        ]
+        const goodbyeQuotes = [
+          'Жизнь идёт дальше...', 'Возвращайся, мы не кусаемся!',
+          'Группа стала чуточку тише...', 'Надеемся, ты вернёшься!'
+        ]
+        const rg = goodbyes[Math.floor(Math.random() * goodbyes.length)]
+        const rgq = goodbyeQuotes[Math.floor(Math.random() * goodbyeQuotes.length)]
+        await sock.sendMessage(anu.id, { image: { url: await sock.profilePictureUrl(n, 'image').catch(() => "https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg") }, caption: `✦━─⌬༓༒༓⌬─━✦\n*ПРОЩАЙ*\n\n${rg}\n『 👥 Осталось: ${m} 』\n│\n│ 💬 ${rgq}\n✦━─⌬༓༒༓⌬─━✦`, mentions: [n] })
+      }
+    }
+  } catch (e) {}
+})
+
+// ========== ОБРАБОТКА СООБЩЕНИЙ ==========
   sock.ev.on('messages.upsert', async m => {
     try {
       const info = m.messages[0]
       if (!info.message || (info.key && info.key.remoteJid == "status@broadcast")) return
+      // Авточтение сообщений
+try { await sock.readMessages([info.key]) } catch(e) {}
       const type = Object.keys(info.message)[0] === "senderKeyDistributionMessage" ? Object.keys(info.message)[1] || Object.keys(info.message)[0] : Object.keys(info.message)[0]
       const from = info.key.remoteJid
       let body = (type === 'conversation') ? info.message.conversation : (type == 'imageMessage') ? info.message.imageMessage.caption : (type == 'videoMessage') ? info.message.videoMessage.caption : (type == 'extendedTextMessage') ? info.message.extendedTextMessage.text : ''
@@ -218,6 +403,48 @@ console.log('');
       }
 
       if (isBanGp && !isOwner) return
+      
+// АНТИБОТ — удаление новичков за первую ссылку (24 часа)
+if (isGroup && global.antiBot && global.antiBot[from]) {
+  const newcomerPath = './settings/Grupo/Json/newcomers.json'
+  let newcomers = {}
+  try { if (fs.existsSync(newcomerPath)) newcomers = JSON.parse(fs.readFileSync(newcomerPath)) } catch(e) {}
+  
+  const now = Date.now()
+  const oneDay = 24 * 60 * 60 * 1000  // ← здесь меняй время (24, 48, 72 и т.д.)
+  
+  // Очищаем старые записи (старше 1 дня)
+  for (let jid of Object.keys(newcomers)) {
+    if (now - newcomers[jid] > oneDay) delete newcomers[jid]
+  }
+  
+  if (!newcomers[sender]) {
+    // Первое сообщение от участника — запоминаем
+    newcomers[sender] = now
+    fs.writeFileSync(newcomerPath, JSON.stringify(newcomers))
+  } else if (now - newcomers[sender] < oneDay) {
+    // Прошло меньше суток с первого сообщения
+    let msgText = (budy || body || '').toLowerCase()
+// Для чужих сообщений WhatsApp может не передать body, ищем в extendedTextMessage
+if (!msgText && info.message?.extendedTextMessage?.text) {
+  msgText = info.message.extendedTextMessage.text.toLowerCase()
+}
+if (!msgText && info.message?.conversation) {
+  msgText = info.message.conversation.toLowerCase()
+}
+    if (msgText.includes('http://') || msgText.includes('https://') || msgText.includes('.com') || msgText.includes('.ru')) {
+      try {
+        await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } })
+        const { jidNormalizedUser } = require('baileys')
+        await sock.groupParticipantsUpdate(from, [jidNormalizedUser(sender)], 'remove')
+        await sock.sendMessage(from, { text: `🤖 @${sender.split('@')[0]} удалён за спам-ссылку (антибот)`, mentions: [sender] })
+        delete newcomers[sender]
+        fs.writeFileSync(newcomerPath, JSON.stringify(newcomers))
+        return
+      } catch(e) {}
+    }
+  }
+}      
 
       // АНТИПРИВАТ
       if (isAntipv && !isGroup && !isOwner) {
@@ -228,6 +455,16 @@ console.log('');
         }
         return
       }
+      
+      // АНТИСТИКЕР — удаление стикеров
+if (isGroup && global.antiSticker && global.antiSticker[from]) {
+  if (info.message?.stickerMessage) {
+    try { await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } }) } catch(e) {}
+    // Опционально: предупреждение
+    // await sock.sendMessage(from, { text: `⚠️ @${sender.split('@')[0]}, стикеры запрещены!`, mentions: [sender] }, { quoted: info })
+    return
+  }
+}
 
       // АНТИУДАЛЕНИЕ — сохранение текста и медиа
       if (isGroup && global.antiDel && global.antiDel[from]) {
@@ -398,18 +635,24 @@ console.log('');
           await sock.sendMessage(from, { image: { url: JpgBot }, caption: `🤖 ${Bot}\n⚡ ${lat.toFixed(4)} сек\n⏳ ${runtime(process.uptime())}\n👤 ${pushname}` }, { quoted: info })
           break
 
-        case 'инфобот': case 'botinfo':
-          if (!isGroup) return enviar('👥 Только в группах')
-          const wStatus = iswelkom ? '✅' : '❌'
-          const aStatus = isAntiLink ? '✅' : '❌'
-          const a2Status = (() => { try { return JSON.parse(fs.readFileSync('./settings/Grupo/Json/antilink2.json')).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
-          const mStatus = isModoAdmin ? '✅' : '❌'
-          const pStatus = isAntipv ? '✅' : '❌'
-          const arStatus = (() => { try { const d = JSON.parse(fs.readFileSync('./settings/Grupo/Json/autoresponder.json')); return (d.grupos || []).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
-          const asStatus = (() => { try { const d = JSON.parse(fs.readFileSync('./settings/Grupo/Json/autosticker.json')); return (d.grupos || []).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
-          let gPhoto; try { gPhoto = await sock.profilePictureUrl(from, 'image') } catch { gPhoto = 'https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg' }
-          await sock.sendMessage(from, { image: { url: gPhoto }, caption: `╭─НАСТРОЙКИ ГРУППЫ─╮\n│\n│ ${wStatus} Приветствие\n│ ${aStatus} Антиссылка\n│ ${a2Status} Антиссылка 2\n│ ${mStatus} Режим админа\n│ ${pStatus} Антиприват\n│ ${arStatus} Автоответчик\n│ ${asStatus} Автостикер\n│\n╰─────────────` }, { quoted: info })
-          break
+               case 'инфобот': case 'botinfo':
+  if (!isGroup) return enviar('👥 Только в группах')
+  const wStatus = iswelkom ? '✅' : '❌'
+  const aStatus = isAntiLink ? '✅' : '❌'
+  const a2Status = (() => { try { return JSON.parse(fs.readFileSync('./settings/Grupo/Json/antilink2.json')).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
+  let abStatus = '❌'
+  if (global.antiBot && global.antiBot[from]) abStatus = '✅'
+  let aaStatus = '❌'
+  if (global.antiArab && global.antiArab[from]) aaStatus = '✅'
+  let atsStatus = '❌'
+  if (global.antiSticker && global.antiSticker[from]) atsStatus = '✅'
+  const mStatus = isModoAdmin ? '✅' : '❌'
+  const pStatus = isAntipv ? '✅' : '❌'
+  const arStatus = (() => { try { const d = JSON.parse(fs.readFileSync('./settings/Grupo/Json/autoresponder.json')); return (d.grupos || []).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
+  const asStatus = (() => { try { const d = JSON.parse(fs.readFileSync('./settings/Grupo/Json/autosticker.json')); return (d.grupos || []).includes(from) ? '✅' : '❌' } catch { return '❌' } })()
+  let gPhoto; try { gPhoto = await sock.profilePictureUrl(from, 'image') } catch { gPhoto = 'https://i.postimg.cc/SR3KvGSj/IMG-20260429-WA0747.jpg' }
+  await sock.sendMessage(from, { image: { url: gPhoto }, caption: `╭─НАСТРОЙКИ ГРУППЫ─╮\n│\n│ ${wStatus} Приветствие\n│ ${aStatus} Антиссылка\n│ ${a2Status} Антиссылка 2\n│ ${abStatus} АнтиБот\n│ ${aaStatus} АнтиАраб\n│ ${atsStatus} АнтиСтикер\n│ ${mStatus} Режим админа\n│ ${pStatus} Антиприват\n│ ${arStatus} Автоответчик\n│ ${asStatus} Автостикер\n│\n╰─────────────` }, { quoted: info })
+break
 
         case 'ботвкл': case 'boton':
           if (!isOwner) return enviar(respuesta.miowner)
@@ -545,7 +788,7 @@ console.log('');
           try {
             const ic = await sock.groupInviteCode(from)
             let ph; try { ph = await sock.profilePictureUrl(from, 'image') } catch { ph = 'https://i.postimg.cc/0ygy14nq/20251017-152852.jpg' }
-            await sock.sendMessage(from, { image: { url: ph }, caption: `╭─「 🔗 ПРИГЛАШЕНИЕ 」─╮\n│\n│ 📛 *${groupName}*\n│ 🔗 https://chat.whatsapp.com/${ic}\n╰──────────` }, { quoted: info })
+            await sock.sendMessage(from, { image: { url: ph }, caption: `╭─🔗ПРИГЛАШЕНИЕ─╮\n│\n│ 📛 *${groupName}*\n│ 🔗 https://chat.whatsapp.com/${ic}\n╰──────────` }, { quoted: info })
           } catch(e) { enviar('❌ Не удалось') }
           break
 
@@ -648,36 +891,45 @@ console.log('');
           break
 
         case 'музыка': case 'play':
-          if (!isReg) return enviar(respuesta.registro)
-          if (!q) return enviar('❌ Введите название\nПример: #музыка believer')
-          enviar('🔍 Ищу...')
-          try {
-            const yts = require('yt-search')
-            const fetch = require('node-fetch')
-            let { videos } = await yts(q)
-            if (!videos || videos.length === 0) return enviar('❌ Не найдено')
-            let video = videos[0]
-            const apis = [
-              `https://api.siputzx.my.id/api/d/ytmp3?url=${encodeURIComponent(video.url)}`,
-              `https://api.zenkey.my.id/api/download/ytmp3?apikey=zenkey&url=${encodeURIComponent(video.url)}`,
-              `https://exonity.tech/api/dl/playmp3?query=${encodeURIComponent(video.title)}`,
-              `https://api.dorratz.com/v3/ytdl?url=${encodeURIComponent(video.url)}`
-            ]
-            let audioUrl = ''
-            for (let api of apis) {
-              try { let r = await fetch(api).then(r => r.json()); audioUrl = r?.dl || r?.result?.download?.url || r?.result?.download || r?.data?.url || r?.medias?.[0]?.url || ''; if (audioUrl) break } catch(e) {}
-            }
-            if (audioUrl) {
-              let thumb = video.thumbnail || ''
-              let title = video.title || ''
-              let author = video.author?.name || ''
-              let duration = video.timestamp || ''
-              let views = video.views || ''
-              await sock.sendMessage(from, { image: { url: thumb }, caption: `🎵 *${title}*\n👤 ${author}\n⏱ ${duration}\n👁 ${views}` }, { quoted: info })
-              await sock.sendMessage(from, { audio: { url: audioUrl }, mimetype: 'audio/mpeg', ptt: false }, { quoted: info })
-            } else { enviar('❌ Все API недоступны') }
-          } catch(e) { enviar('❌ Ошибка') }
-          break
+  if (!isReg) return enviar(respuesta.registro)
+  if (!q) return enviar('❌ Введите название\nПример: #музыка believer')
+  enviar('🔍 Ищу...')
+  try {
+    const yts = require('yt-search')
+    const fetch = require('node-fetch')
+    let { videos } = await yts(q)
+    if (!videos || videos.length === 0) return enviar('❌ Не найдено')
+    let video = videos[0]
+    
+    const apis = [
+  `https://api.davidcyriltech.my.id/ytmp3?url=${encodeURIComponent(video.url)}`,
+  `https://apis-keith.vercel.app/download/dlmp3?url=${encodeURIComponent(video.url)}`
+]
+    
+    let audioUrl = ''
+    for (let api of apis) {
+      try {
+        let r = await fetch(api).then(r => r.json())
+        audioUrl = r?.dl || r?.data?.dl || r?.data?.downloadUrl || r?.downloads?.url || ''
+        if (audioUrl) break
+      } catch(e) {}
+    }
+    
+    if (audioUrl) {
+      let thumb = video.thumbnail || ''
+      let title = video.title || ''
+      let author = video.author?.name || ''
+      let duration = video.timestamp || ''
+      let views = video.views || ''
+      await sock.sendMessage(from, { image: { url: thumb }, caption: `🎵 *${title}*\n👤 ${author}\n⏱ ${duration}\n👁 ${views}` }, { quoted: info })
+      await sock.sendMessage(from, { audio: { url: audioUrl }, mimetype: 'audio/mpeg', ptt: false }, { quoted: info })
+    } else {
+      enviar('❌ Все API недоступны. Попробуйте позже.')
+    }
+  } catch(e) {
+    enviar('❌ Ошибка загрузки')
+  }
+break
 
         case 'реакции': case 'reactions':
           if (!isGroupAdmins) return enviar(respuesta.admin)
@@ -773,37 +1025,194 @@ console.log('');
             enviar(`Антиудаление: ${st}\n• антиудаление включить\n• антиудаление выключить`)
           }
           break
+case 'антибот': case 'antibot':
+  if (!isGroupAdmins) return enviar(respuesta.admin)
+  if (!global.antiBot) global.antiBot = {}
+  
+  if (args[0] === 'включить' || args[0] === 'on') {
+    global.antiBot[from] = true
+    enviar('✅ АнтиБот включён. Защита от ботов активирована.')
+  } else if (args[0] === 'выключить' || args[0] === 'off') {
+    delete global.antiBot[from]
+    enviar('❌ АнтиБот выключен.')
+  } else {
+    let st = global.antiBot[from] ? '✅ Вкл' : '❌ Выкл'
+    enviar(`🤖 АнтиБот: ${st}\n• антибот включить\n• антибот выключить`)
+  }
+break
 
-        default: {
-          // АНТИССЫЛКА 1 — с предупреждениями (3 ссылки = кик)
-          if (isGroup && isAntiLink && !isOwner) {
-            const lt1 = (budy || '').toLowerCase()
-            if (lt1.includes('.com') || lt1.includes('http://') || lt1.includes('https://')) {
+case 'антиараб': case 'antiarab':
+  if (!isGroupAdmins) return enviar(respuesta.admin)
+  if (!global.antiArab) global.antiArab = {}
+  
+  if (args[0] === 'включить' || args[0] === 'on') {
+    global.antiArab[from] = true
+    enviar('🕌 АнтиАраб включён. Номера арабских стран — кик.')
+  } else if (args[0] === 'выключить' || args[0] === 'off') {
+    delete global.antiArab[from]
+    enviar('❌ АнтиАраб выключен.')
+  } else {
+    let st = global.antiArab[from] ? '✅ Вкл' : '❌ Выкл'
+    enviar(`🕌 АнтиАраб: ${st}\n• антиараб включить\n• антиараб выключить`)
+  }
+break
+
+case 'команды': case 'help': case 'хелп':
+  if (!isGroup) return enviar('👥 Только в группах')
+  const helpText = `╭━━━━━━━━━━━━━━━━━╮
+┊  📖 *СПИСОК КОМАНД БОТА*  ┊
+╰━━━━━━━━━━━━━━━━━╯
+
+╭─ 📄 *ИНФОРМАЦИЯ* ─╮
+│ #меню — главное меню
+│ #меню2 — голосовые команды
+│ #пинг — скорость ответа
+┊ #погода Погода в городе
+┊ #комплимент Случайный
+│ #статус — время работы
+│ #профиль — ваш профиль
+│ #характер @юзер — анализ
+│ #владелец — контакт создателя
+│ #инфобот — настройки группы
+│ #тествладельца — проверка
+│ #мойид — показать ваш ID
+╰─────────────╯
+
+╭─ 👑 *АДМИНЫ* ─╮
+┊ #антистикер Удаление стикеров
+┊ #антибот Защита от ботов
+┊ #антиараб Авто-кик арабов
+│ #админы — вызвать админов
+│ #приветствие вкл/выкл
+│ #антиссылка вкл/выкл
+│ #антиссылка2 вкл/выкл
+│ #антиудаление вкл/выкл
+│ #модадмин вкл/выкл
+│ #все — упомянуть всех
+│ #группу открыть/закрыть
+│ #вызов — активность
+│ #удалить @юзер
+│ #ссылка — ссылка группы
+│ #пригласить номер
+│ #предупреждение @юзер
+│ #групплист — группы бота
+│ #реакции вкл/выкл
+│ #автостикер вкл/выкл
+│ #автоответчик вкл/выкл
+╰─────────────╯
+
+╭─ 🎨 *СТИКЕРЫ* ─╮
+│ #стикер — фото/видео→стикер
+│ #вкартинку — стикер→фото
+│ #ввидео — стикер файлом
+╰─────────────╯
+
+╭─ 🎵 *МЕДИА* ─╮
+│ #музыка название — трек
+│ #гороскоп — шуточный
+│ #характер @юзер — анализ
+╰─────────────╯
+
+╭─ 💰 *ЭКОНОМИКА* ─╮
+│ #рег — регистрация
+│ #профиль — баланс и опыт
+╰─────────────╯
+
+╭─ 👑 *СОЗДАТЕЛЬ* ─╮
+│ #антиприват вкл/выкл
+│ #ботвкл / #ботвыкл
+│ #перезагрузка
+│ #соединять ссылка
+│ #автоадмин
+│ #чистить — удалить tmp
+│ #выход — бот покидает группу
+│ #открыть — view once
+╰─────────────╯`
+  
+  await sock.sendMessage(from, { text: helpText }, { quoted: info })
+break
+
+case 'погода': case 'weather':
+  if (!q) return enviar('❌ Введите город\nПример: #погода Москва')
+  enviar('🌤 Узнаю погоду...')
+  try {
+    const fetch = require('node-fetch')
+    // Бесплатное API погоды (без ключа)
+    let url = `https://wttr.in/${encodeURIComponent(q)}?format=%C+%t+%w+%h&lang=ru`
+    let res = await fetch(url)
+    let text = await res.text()
+    if (text && text.length > 0) {
+      await sock.sendMessage(from, { 
+        image: { url: `https://wttr.in/${encodeURIComponent(q)}_0pq_lang=ru.png` },
+        caption: `🌍 *Погода в ${q}*\n\n${text.trim()}\n\n# ${q} #погода`
+      }, { quoted: info })
+    } else {
+      enviar('❌ Город не найден')
+    }
+  } catch(e) {
+    enviar('❌ Ошибка получения погоды')
+  }
+break
+
+case 'комплимент': case 'compliment':
+  const compliments = [
+    'Ты сегодня выглядишь потрясающе! ✨',
+    'Твоя улыбка освещает этот чат! 😊',
+    'С тобой всегда интересно общаться! 💬',
+    'Ты — душа этой группы! 🎉',
+    'Твой юмор — это нечто! 😂',
+    'Ты делаешь этот мир лучше! 🌍',
+    'С тобой приятно иметь дело! 🤝',
+    'Ты просто космос! 🚀',
+    'Твоя энергия заряжает всех вокруг! ⚡',
+    'Ты — легенда этого чата! 👑',
+    'Твои идеи всегда гениальны! 💡',
+    'Ты как солнечный луч в пасмурный день! ☀️',
+    'С тобой хоть в разведку! 🕵️',
+    'Ты неотразим(а) сегодня! 💫',
+    'Твой стиль — просто огонь! 🔥'
+  ]
+  let comp = compliments[Math.floor(Math.random() * compliments.length)]
+  if (info.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
+    let who = info.message.extendedTextMessage.contextInfo.mentionedJid[0]
+    enviar(`💐 @${who.split('@')[0]}, ${comp}`, { mentions: [who] })
+  } else {
+    enviar(`💐 ${comp}`)
+  }
+break
+
+case 'антистикер': case 'antisticker':
+  if (!isGroupAdmins) return enviar(respuesta.admin)
+  if (!global.antiSticker) global.antiSticker = {}
+  
+  if (args[0] === 'включить' || args[0] === 'on') {
+    global.antiSticker[from] = true
+    enviar('🚫 АнтиСтикер включён. Все стикеры будут удаляться.')
+  } else if (args[0] === 'выключить' || args[0] === 'off') {
+    delete global.antiSticker[from]
+    enviar('✅ АнтиСтикер выключен.')
+  } else {
+    let st = global.antiSticker[from] ? '✅ Вкл' : '❌ Выкл'
+    enviar(`🚫 АнтиСтикер: ${st}\n• антистикер включить\n• антистикер выключить`)
+  }
+break
+
+                                                default: {
+          // АНТИССЫЛКА 1 — только удаление ссылки
+          if (isGroup && isAntiLink) {
+            const msgText = (budy || body || '').toLowerCase()
+            if (msgText.includes('http') || msgText.includes('https://') || msgText.includes('.com') || msgText.includes('.ru') || msgText.includes('chat.whatsapp.com')) {
               try { await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } }) } catch(e) {}
-              if (!global.linkWarns) global.linkWarns = {}
-              if (!global.linkWarns[from]) global.linkWarns[from] = {}
-              if (!global.linkWarns[from][sender]) global.linkWarns[from][sender] = 0
-              global.linkWarns[from][sender]++
-              let warns = global.linkWarns[from][sender]
-              if (warns >= 3) {
-                try {
-                  const { jidNormalizedUser } = require('baileys')
-                  await sock.groupParticipantsUpdate(from, [jidNormalizedUser(sender)], 'remove')
-                  await enviar(`🚫 @${sender.split('@')[0]} удалён за ссылки (${warns}/3)`, { mentions: [sender] })
-                  delete global.linkWarns[from][sender]
-                } catch(e) { await enviar(`⚠️ @${sender.split('@')[0]} ссылки запрещены! (${warns}/3) Бот не админ.`, { mentions: [sender] }) }
-              } else {
-                await enviar(`⚠️ @${sender.split('@')[0]} ссылки запрещены! Предупреждение ${warns}/3`, { mentions: [sender] })
-              }
             }
           }
-          // АНТИССЫЛКА 2 — сразу кик
-          const al2Path2 = './settings/Grupo/Json/antilink2.json'
-          if (isGroup && fs.existsSync(al2Path2)) {
-            const al2Data = JSON.parse(fs.readFileSync(al2Path2))
+          
+          // АНТИССЫЛКА 2 — удаление + кик
+          const al2Path = './settings/Grupo/Json/antilink2.json'
+          if (isGroup && fs.existsSync(al2Path)) {
+            const al2Data = JSON.parse(fs.readFileSync(al2Path))
             if (al2Data.includes(from)) {
-              const lt2 = (budy || '').toLowerCase()
-              if (lt2.includes('.com') || lt2.includes('http://') || lt2.includes('https://')) {
+              const msgText2 = (budy || body || '').toLowerCase()
+              if (msgText2.includes('http') || msgText2.includes('https://') || msgText2.includes('.com') || msgText2.includes('.ru') || msgText2.includes('chat.whatsapp.com')) {
                 try { await sock.sendMessage(from, { delete: { remoteJid: from, fromMe: false, id: info.key.id, participant: sender } }) } catch(e) {}
                 try {
                   const { jidNormalizedUser } = require('baileys')
@@ -812,9 +1221,6 @@ console.log('');
                 } catch(e) { await enviar(`⚠️ @${sender.split('@')[0]} отправил ссылку! Бот не админ.`, { mentions: [sender] }) }
               }
             }
-          }
-          if (budy.startsWith('=>Duueño') && isOwner) {
-            try { enviar(util.format(eval(`(async () => { return ${budy.slice(3)} })()`))) } catch (e) { enviar(String(e)) }
           }
         }
       }
